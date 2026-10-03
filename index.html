@@ -82,6 +82,15 @@
   .btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--border-strong)}
   .btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
   .pdfbtn{padding:9px 14px;font-size:13px}
+  .modal{position:fixed;inset:0;background:rgba(10,15,25,.45);display:grid;place-items:center;z-index:50;padding:16px}
+  .modal[hidden]{display:none}
+  .modalcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:22px;width:100%;max-width:360px}
+  .modalcard label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:12px 0 4px}
+  .modalcard input{width:100%;border:1px solid var(--border-strong);border-radius:10px;padding:10px 12px;font:inherit;background:var(--surface);color:var(--fg)}
+  .modalcard .row{display:flex;gap:10px;margin-top:18px}
+  .histrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);margin-bottom:10px;flex-wrap:wrap}
+  .histact{display:flex;gap:8px}
+  .locked{opacity:.5}
   .note{font-size:12.5px;color:var(--faint)}
   .msg{font-size:13px;font-weight:600}
   .msg.err{color:var(--bad)} .msg.ok{color:var(--ok)} .msg.work{color:var(--accent)}
@@ -160,10 +169,11 @@
     <nav class="tabs" role="tablist" aria-label="Seções">
       <button class="tab" role="tab" aria-selected="true" data-screen="upload">Upload</button>
       <button class="tab" role="tab" aria-selected="false" data-screen="concil">Conciliação</button>
+      <button class="tab" role="tab" data-screen="historico">Histórico</button>
       <button class="tab" role="tab" disabled>Painel <span class="soon">em breve</span></button>
-      <button class="tab" role="tab" disabled>Exportar <span class="soon">em breve</span></button>
     </nav>
     <div class="spacer"></div>
+    <button class="icobtn" id="authBtn" style="width:auto;padding:0 12px;font-size:13px">Entrar</button>
     <button class="icobtn" id="theme" title="Alternar tema" aria-label="Alternar tema claro/escuro">◐</button>
   </div>
 </header>
@@ -250,8 +260,29 @@
     </div></div>
     <p class="count" id="count"></p>
   </section>
+
+  <section class="screen" id="screen-historico" hidden>
+    <h1>Histórico &amp; base</h1>
+    <p class="lead">Base acumulada de pedidos e o registro de cada importação. Cada importação adiciona só o que falta e atualiza o que mudou — nada é duplicado.</p>
+    <div id="histList" style="margin-top:18px"></div>
+  </section>
 </main>
 
+<div class="modal" id="loginModal" hidden>
+  <form class="modalcard" id="loginForm">
+    <h3>Entrar</h3>
+    <p class="note">Acesso restrito à equipe da Corujinha.</p>
+    <label for="loginEmail">E-mail</label>
+    <input id="loginEmail" type="email" autocomplete="username" required>
+    <label for="loginPass">Senha</label>
+    <input id="loginPass" type="password" autocomplete="current-password" required>
+    <p class="msg err" id="loginErr"></p>
+    <div class="row"><button type="submit" class="btn primary" style="flex:1">Entrar</button><button type="button" class="btn ghost" id="loginCancel">Cancelar</button></div>
+  </form>
+</div>
+
+<script>window.CF_CONFIG={SUPABASE_URL:"https://ngsucwmyifdkcfnaepgy.supabase.co",SUPABASE_ANON_KEY:"sb_publishable_o03ebjDgPLCzmJ_me2hYWQ_eiEmf95t"};</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -480,23 +511,68 @@ procBtn.addEventListener('click',async()=>{
     const {rows,matched}=reconcile(b,inc);
     if(!rows.length) throw new Error('nenhum pedido encontrado no .csv do Bling.');
     IMPORTED=true;
-    setData(rows); updateTiles(rows);
-    document.getElementById('sampletag').textContent=`${rows.length} pedidos importados`;
     let extra='';
-    if(matched===0) extra=' ⚠️ Nenhum pedido casou com o demonstrativo — confira se o .xlsx é o "income" do TikTok (os IDs precisam estar como texto).';
-    else if(matched<rows.length*0.3) extra=` ⚠️ Só ${matched} pedidos casaram com o demonstrativo — verifique o arquivo do TikTok.`;
-    setMsg(`${rows.length} pedidos processados · ${matched} com demonstrativo.`+extra, matched?'ok':'err');
+    if(matched===0) extra=' ⚠️ Nenhum pedido casou com o demonstrativo — confira se o .xlsx é o income do TikTok.';
+    else if(matched<rows.length*0.3) extra=` ⚠️ Só ${matched} pedidos casaram com o demonstrativo — verifique o arquivo.`;
+    if(sb&&session){
+      const res=await mergeToBase(rows);
+      await loadBase();
+      setMsg(`Importado e salvo automaticamente: ${res.novos} novos, ${res.atualizados} atualizados. Base com ${ROWS.length} pedidos.`+extra,'ok');
+    }else{
+      setData(rows); updateTiles(rows);
+      document.getElementById('sampletag').textContent=`${rows.length} pedidos (local — não salvo)`;
+      setMsg(`${rows.length} pedidos processados em modo local. Entre (botão no topo) para salvar na base automaticamente.`+extra,'work');
+    }
     show('concil');
   }catch(e){ setMsg('Não consegui processar: '+e.message,'err'); }
   finally{ procBtn.innerHTML=old; syncProc(); }
 });
 
-/* ---------- navegação / tema ---------- */
+/* ---------- navegação ---------- */
 const tabs=[...document.querySelectorAll('.tab[data-screen]')];
-function show(name){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.screen===name));document.getElementById('screen-upload').hidden=name!=='upload';document.getElementById('screen-concil').hidden=name!=='concil';window.scrollTo({top:0,behavior:'smooth'});}
+function show(name){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.screen===name));document.querySelectorAll('.screen').forEach(s=>{s.hidden=(s.id!=='screen-'+name);});if(name==='historico')carregarHistorico();window.scrollTo({top:0,behavior:'smooth'});}
 tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.screen)));
 document.getElementById('goconc').addEventListener('click',()=>show('concil'));
 
+/* ---------- Supabase: login + base acumulada (auto-save + dedup) ---------- */
+let sb=null, session=null;
+try{ if(window.supabase&&window.CF_CONFIG&&CF_CONFIG.SUPABASE_URL){ sb=window.supabase.createClient(CF_CONFIG.SUPABASE_URL,CF_CONFIG.SUPABASE_ANON_KEY); } }catch(e){}
+const authBtn=document.getElementById('authBtn'), loginModal=document.getElementById('loginModal');
+function renderAuth(){ authBtn.textContent = session?(session.user.email+' · Sair'):'Entrar'; }
+async function refreshAuth(load){ if(!sb){authBtn.textContent='Entrar';return;} try{const {data}=await sb.auth.getSession();session=data.session;}catch(e){session=null;} renderAuth(); if(load&&session) loadBase(); }
+if(sb) sb.auth.onAuthStateChange((_e,s)=>{const was=!!session;session=s;renderAuth();if(session&&!was)loadBase();});
+refreshAuth(true);
+function openLogin(){ if(!sb){alert('Login/banco indisponível aqui (no preview do Claude a conexão externa é bloqueada). Use o site do Vercel.');return;} loginModal.hidden=false; const e=document.getElementById('loginEmail'); if(e)e.focus(); }
+function closeLogin(){ loginModal.hidden=true; }
+authBtn.addEventListener('click',async()=>{ if(session&&sb){ await sb.auth.signOut(); session=null; renderAuth(); } else openLogin(); });
+document.getElementById('loginForm').addEventListener('submit',async(ev)=>{ ev.preventDefault(); const email=document.getElementById('loginEmail').value.trim(), pass=document.getElementById('loginPass').value; const errEl=document.getElementById('loginErr'); errEl.textContent=''; const {error}=await sb.auth.signInWithPassword({email,password:pass}); if(error){errEl.textContent='Não foi possível entrar: '+error.message;return;} closeLogin(); await refreshAuth(true); });
+document.getElementById('loginCancel').addEventListener('click',closeLogin);
+
+async function mergeToBase(rows){
+  const {data:ex,error:e1}=await sb.from('pedidos').select('pedido'); if(e1) throw new Error(e1.message);
+  const have=new Set((ex||[]).map(x=>x.pedido)); let novos=0,atual=0;
+  const payload=rows.map(r=>{ have.has(r.pedido)?atual++:novos++; return {pedido:r.pedido,dados:r,data_venda:r.dataVenda,data_pagamento:r.pagamentoReal,atualizado_em:new Date().toISOString()}; });
+  for(let i=0;i<payload.length;i+=500){ const {error}=await sb.from('pedidos').upsert(payload.slice(i,i+500),{onConflict:'pedido'}); if(error) throw new Error(error.message); }
+  const ds=rows.map(r=>r.dataVenda).filter(Boolean).sort((a,b)=>toKey(a)<toKey(b)?-1:1);
+  await sb.from('importacoes').insert({novos,atualizados:atual,total_arquivo:rows.length,periodo:ds.length?ds[0]+' a '+ds[ds.length-1]:''});
+  return {novos,atualizados:atual};
+}
+async function loadBase(){ if(!sb||!session)return; const {data,error}=await sb.from('pedidos').select('dados').order('pedido'); if(error){setMsg('Erro ao carregar base: '+error.message,'err');return;} const rows=(data||[]).map(x=>x.dados); if(rows.length){ setData(rows); updateTiles(rows); document.getElementById('sampletag').textContent='base · '+rows.length+' pedidos'; } }
+async function carregarHistorico(){ const box=document.getElementById('histList'); if(!box)return;
+  if(!sb){box.innerHTML='<p class="note">Banco indisponível neste preview. Use o site do Vercel.</p>';return;}
+  if(!session){box.innerHTML='<p class="note">Entre (botão no topo) para ver a base e as importações.</p>';return;}
+  box.innerHTML='<p class="note">Carregando…</p>';
+  try{
+    const cnt=await sb.from('pedidos').select('pedido',{count:'exact',head:true});
+    const imp=await sb.from('importacoes').select('*').order('criado_em',{ascending:false}).limit(50);
+    const total=cnt.count||0; const list=imp.data||[];
+    let html=`<div class="histrow"><div><b>Base atual</b><div class="note">${total} pedidos acumulados</div></div></div>`;
+    html+= list.length? list.map(f=>`<div class="histrow"><div><b>Importação · ${new Date(f.criado_em).toLocaleString('pt-BR')}</b><div class="note">${f.novos} novos · ${f.atualizados} atualizados · ${f.total_arquivo} no arquivo${f.periodo?' · '+f.periodo:''}</div></div></div>`).join('') : '<p class="note">Nenhuma importação registrada ainda.</p>';
+    box.innerHTML=html;
+  }catch(e){ box.innerHTML='<p class="note">Erro: '+e.message+'</p>'; }
+}
+
+/* ---------- tema ---------- */
 const root=document.documentElement,tb=document.getElementById('theme');
 let saved=null;try{saved=localStorage.getItem('cf-theme')}catch(e){}
 if(saved)root.setAttribute('data-theme',saved);
