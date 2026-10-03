@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html,body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Conciliação Corujinha</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  /* Layout: app shell — sticky top bar + tabbed workspace; data-dense table on a calm light ground */
+  :root{
+    --bg:#f6f7f9; --surface:#ffffff; --surface-2:#fbfcfd;
+    --fg:#192230; --muted:#5f6b7a; --faint:#8b97a6;
+    --border:#e6e9ee; --border-strong:#d4d9e1;
+    --accent:#2f5fe0; --accent-soft:#eaf0fe;
+    --ok:#0e9f6e; --ok-soft:#e6f6ef; --warn:#b7791f; --warn-soft:#fbf1dd;
+    --bad:#d64545; --bad-soft:#fbe9e9; --pend:#64748b; --pend-soft:#eef1f5;
+    --shadow:0 1px 2px rgba(20,30,50,.04),0 6px 20px rgba(20,30,50,.06);
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --ui:"Manrope",system-ui,-apple-system,Segoe UI,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#10141b; --surface:#161c26; --surface-2:#131922;
+    --fg:#e8edf4; --muted:#9aa7b8; --faint:#6b7889;
+    --border:#263040; --border-strong:#33414f; --accent:#6b93ff; --accent-soft:#1a2740;
+    --ok:#34d399; --ok-soft:#10261f; --warn:#e0b24d; --warn-soft:#2a2211;
+    --bad:#f87171; --bad-soft:#2c1717; --pend:#94a3b8; --pend-soft:#1b222d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35); color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#10141b; --surface:#161c26; --surface-2:#131922;
+    --fg:#e8edf4; --muted:#9aa7b8; --faint:#6b7889;
+    --border:#263040; --border-strong:#33414f; --accent:#6b93ff; --accent-soft:#1a2740;
+    --ok:#34d399; --ok-soft:#10261f; --warn:#e0b24d; --warn-soft:#2a2211;
+    --bad:#f87171; --bad-soft:#2c1717; --pend:#94a3b8; --pend-soft:#1b222d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35); color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--fg);font-family:var(--ui);line-height:1.5;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{margin:0;text-wrap:balance;font-weight:700;letter-spacing:-.01em}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--border);padding:0 clamp(16px,4vw,28px)}
+  .bar-in{display:flex;align-items:center;gap:18px;height:60px;max-width:1440px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.02em}
+  .brand small{display:block;font-weight:600;font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+  .mark{width:34px;height:34px;flex:none}
+  nav.tabs{display:flex;gap:4px;margin-left:8px;flex-wrap:wrap}
+  .tab{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:8px 13px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:7px}
+  .tab:hover{color:var(--fg);background:var(--surface-2)}
+  .tab[aria-selected="true"]{color:var(--accent);background:var(--accent-soft)}
+  .tab[disabled]{opacity:.5;cursor:not-allowed}
+  .tab .soon{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);border:1px solid var(--border-strong);border-radius:5px;padding:1px 4px}
+  .spacer{flex:1}
+  .icobtn{appearance:none;border:1px solid var(--border);background:var(--surface);color:var(--muted);width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:15px;display:grid;place-items:center}
+  .icobtn:hover{color:var(--fg);border-color:var(--border-strong)}
+
+  main{max-width:1440px;margin:0 auto;padding:clamp(18px,3.5vw,30px) clamp(16px,4vw,28px) 56px}
+  .screen[hidden]{display:none}
+  .lead{color:var(--muted);margin:4px 0 0;max-width:70ch}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+
+  .drops{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:20px}
+  .drop{border:1.5px dashed var(--border-strong);border-radius:14px;background:var(--surface-2);padding:20px;display:flex;flex-direction:column;gap:10px;cursor:pointer;transition:border-color .15s,background .15s}
+  .drop:hover{border-color:var(--accent)}
+  .drop.set{border-style:solid;border-color:var(--ok);background:var(--ok-soft)}
+  .drop .dh{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .drop .kind{font-weight:700}
+  .drop .hint{font-size:12.5px;color:var(--muted)}
+  .drop .file{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;color:var(--fg);background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 10px;word-break:break-all}
+  .check{width:20px;height:20px;flex:none;color:var(--ok)}
+  .actions{display:flex;gap:12px;align-items:center;margin-top:20px;flex-wrap:wrap}
+  .btn{appearance:none;border:0;border-radius:11px;font:inherit;font-weight:700;cursor:pointer;padding:11px 18px;display:inline-flex;align-items:center;gap:8px}
+  .btn.primary{background:var(--accent);color:#fff}
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--border-strong)}
+  .btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .note{font-size:12.5px;color:var(--faint)}
+
+  .result{margin-top:26px}
+  .result-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+  .period{font-family:var(--mono);color:var(--muted);font-size:13px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:15px 16px;display:flex;flex-direction:column;gap:3px}
+  .tile .v{font-family:var(--mono);font-weight:600;font-size:23px;letter-spacing:-.02em}
+  .tile .k{font-size:12px;color:var(--muted);font-weight:600}
+  .tile .sub{font-size:11.5px;color:var(--faint)}
+  .tile.good .v{color:var(--ok)} .tile.warn .v{color:var(--warn)}
+  .banner{display:flex;gap:10px;align-items:flex-start;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);border-radius:12px;padding:12px 14px;margin-top:18px;font-size:13px;color:var(--fg)}
+  .banner b{font-weight:700}
+
+  .toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:18px 0}
+  .search{flex:1;min-width:180px;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:9px 12px}
+  .search input{border:0;background:transparent;color:var(--fg);font:inherit;flex:1;outline:none;min-width:0}
+  .search svg{color:var(--faint);flex:none}
+  select.flt{appearance:none;font:inherit;font-weight:600;color:var(--fg);background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:9px 30px 9px 12px;cursor:pointer;
+    background-image:linear-gradient(45deg,transparent 50%,var(--faint) 50%),linear-gradient(135deg,var(--faint) 50%,transparent 50%);background-position:calc(100% - 15px) 17px,calc(100% - 10px) 17px;background-size:5px 5px;background-repeat:no-repeat}
+  .field{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:6px 12px;font-weight:600;font-size:13px;color:var(--muted)}
+  .field input{width:64px;border:0;border-bottom:1.5px solid var(--border-strong);background:transparent;color:var(--fg);font-family:var(--mono);font-weight:600;font-size:14px;text-align:right;outline:none}
+  .field input:focus{border-color:var(--accent)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:8px}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+  .kpi .v{font-family:var(--mono);font-weight:600;font-size:18px}
+  .kpi .k{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
+  .kpihint{font-size:12px;color:var(--faint);margin:0 0 14px}
+
+  .tablewrap{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow)}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:1860px;font-size:12.5px}
+  thead th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-weight:700;color:var(--muted);font-size:10.5px;letter-spacing:.03em;text-transform:uppercase;padding:10px 11px;border-bottom:1px solid var(--border-strong);white-space:nowrap}
+  th.r{text-align:right}
+  td{padding:9px 11px;border-bottom:1px solid var(--border);white-space:nowrap;vertical-align:middle}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:hover td{background:var(--surface-2)}
+  td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+  td.ped{font-family:var(--mono);font-weight:600}
+  td.id{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+  td.cli{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  td.strong{font-weight:700}
+  .neg{color:var(--bad)}
+  .pct{color:var(--muted);font-weight:600}
+  .custo{width:74px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--fg);font-family:var(--mono);font-size:12px;text-align:right;padding:4px 7px;outline:none;font-variant-numeric:tabular-nums}
+  .custo:focus{border-color:var(--accent)}
+  .custo.man{border-color:var(--accent);background:var(--accent-soft)}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .pill.dot::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9}
+  .p-ok{color:var(--ok);background:var(--ok-soft)}
+  .p-warn{color:var(--warn);background:var(--warn-soft)}
+  .p-bad{color:var(--bad);background:var(--bad-soft)}
+  .p-pend{color:var(--pend);background:var(--pend-soft)}
+  .dash{color:var(--faint)}
+  tfoot td{padding:12px 11px;background:var(--surface-2);font-weight:600;border-top:1px solid var(--border-strong);font-size:12px;color:var(--muted)}
+  .count{font-size:12.5px;color:var(--muted);margin-top:10px}
+  .proto-tag{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:2px 7px}
+  @media (max-width:560px){.bar-in{height:auto;padding:10px 0;flex-wrap:wrap}.brand small{display:none}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="var(--accent)"/>
+        <circle cx="14.5" cy="17" r="5.2" fill="var(--surface)"/><circle cx="25.5" cy="17" r="5.2" fill="var(--surface)"/>
+        <circle cx="14.5" cy="17" r="2.2" fill="var(--accent)"/><circle cx="25.5" cy="17" r="2.2" fill="var(--accent)"/>
+        <path d="M17 24.5c1 1.6 5 1.6 6 0" stroke="var(--surface)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M20 9.5l3 3.5h-6l3-3.5z" fill="var(--surface)"/>
+      </svg>
+      <span>Corujinha<small>Controle Financeiro</small></span>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Seções">
+      <button class="tab" role="tab" aria-selected="true" data-screen="upload">Upload</button>
+      <button class="tab" role="tab" aria-selected="false" data-screen="concil">Conciliação</button>
+      <button class="tab" role="tab" disabled>Painel <span class="soon">em breve</span></button>
+      <button class="tab" role="tab" disabled>Exportar <span class="soon">em breve</span></button>
+    </nav>
+    <div class="spacer"></div>
+    <button class="icobtn" id="theme" title="Alternar tema" aria-label="Alternar tema claro/escuro">◐</button>
+  </div>
+</header>
+
+<main>
+  <section class="screen" id="screen-upload">
+    <p class="eyebrow">Novo fechamento</p>
+    <h1>Importar vendas e repasses</h1>
+    <p class="lead">Suba os dois arquivos do mês. O sistema cruza cada pedido com o demonstrativo do TikTok e identifica a data em que o dinheiro caiu no banco.</p>
+    <div class="drops">
+      <div class="drop set" tabindex="0" role="button" aria-pressed="true">
+        <div class="dh"><span class="kind">Vendas — Bling</span>
+          <svg class="check" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="hint">Relatório de vendas do canal TikTok, exportado do Bling (.csv)</div>
+        <div class="file">Relatorio_Vendas_Tiktok.csv</div>
+      </div>
+      <div class="drop set" tabindex="0" role="button" aria-pressed="true">
+        <div class="dh"><span class="kind">Repasses — TikTok</span>
+          <svg class="check" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div class="hint">Planilha "income" do TikTok Shop com os demonstrativos e pagamentos (.xlsx)</div>
+        <div class="file">income_TikTok.xlsx</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="process">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Processar conciliação</button>
+      <span class="note">Protótipo — arquivos de exemplo já carregados.</span>
+    </div>
+    <div class="result" id="result">
+      <div class="result-head"><h2>Resultado do fechamento</h2><span class="period">Período: 01/07/2026 – 28/09/2026</span></div>
+      <div class="tiles">
+        <div class="tile"><span class="v">224</span><span class="k">Pedidos</span><span class="sub">cruzados com o Bling</span></div>
+        <div class="tile good"><span class="v">224</span><span class="k">Com cliente + NFe</span><span class="sub">100% identificados</span></div>
+        <div class="tile good"><span class="v">158</span><span class="k">Com data de pagamento</span><span class="sub">repasse localizado</span></div>
+        <div class="tile"><span class="v">62</span><span class="k">Pendentes</span><span class="sub">ainda não liquidados</span></div>
+        <div class="tile warn"><span class="v">4</span><span class="k">Sem data real</span><span class="sub">repasse não vinculado</span></div>
+        <div class="tile good"><span class="v">0</span><span class="k">Repasses divergentes</span><span class="sub">checagem bateu</span></div>
+      </div>
+      <div class="banner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 8h.01M11 12h1v4h1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span><b>Lucratividade:</b> Imposto = alíquota × Faturado · Lucro Bruto = Repasse − Custo · Margem = Lucro − Imposto. O <b>Custo</b> é R$ 24 por peça × quantidade do pedido (ajustável no topo e editável por linha). Os totais da conciliação seguem o filtro aplicado.</span>
+      </div>
+      <div class="actions"><button class="btn ghost" id="goconc">Ver conciliação →</button></div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-concil" hidden>
+    <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+      <h1>Conciliação por pedido</h1><span class="proto-tag" id="sampletag">amostra</span>
+    </div>
+    <p class="lead">Os cartões de totais abaixo refletem o que está filtrado — assim a Aline confere por data de pagamento antes de exportar.</p>
+    <div class="kpis" id="kpis"></div>
+    <p class="kpihint" id="kpihint"></p>
+    <div class="toolbar">
+      <label class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="q" type="search" placeholder="Buscar por pedido, cliente, NFe ou ID…" autocomplete="off"></label>
+      <label class="field">Alíquota <input id="aliq" type="text" inputmode="decimal" value="4,5">%</label>
+      <label class="field">Custo/peça R$ <input id="cunit" type="text" inputmode="decimal" value="24"></label>
+      <select class="flt" id="fSit"><option value="">Situação: todas</option></select>
+      <select class="flt" id="fRec"><option value="">Recebimento: todos</option></select>
+      <select class="flt" id="fPag"><option value="">Data de pagamento: todas</option></select>
+      <select class="flt" id="fChk">
+        <option value="">Checagem: todas</option><option value="ok">Repasse confere</option><option value="dif">Repasse diverge</option><option value="na">Sem repasse ainda</option>
+      </select>
+    </div>
+    <div class="tablewrap"><div class="scroll">
+      <table>
+        <thead><tr>
+          <th>Nº Pedido Bling</th><th>ID Pedido TikTok</th><th>ID Pagamento</th><th>ID Demonstrativo</th><th>Data venda</th><th>Data entrega</th><th>Situação</th><th>Cliente</th><th>NFe</th>
+          <th class="r">Faturado (NF)</th><th class="r">Custo</th><th class="r">Vendas líq.</th><th class="r">Taxas</th><th class="r">A liquidar</th>
+          <th class="r">Repasse − Faturado</th><th class="r">Imposto</th><th class="r">Lucro Bruto</th><th class="r">Margem</th><th>Confere repasse</th>
+          <th>Liberação</th><th>Pagamento real</th><th>Recebimento</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot><tr><td id="foot" colspan="22"></td></tr></tfoot>
+      </table>
+    </div></div>
+    <p class="count" id="count"></p>
+  </section>
+</main>
+
+<script>
+const ROWS=({"rows": [{"pedido": "8669", "idTiktok": "585175701458028173", "cliente": "LUCAS ANTONIO BARBOSA DANTAS CRUZ", "nfe": "3355", "dataVenda": "23/07/2026", "dataEntrega": "27/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 51.75, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7669458158326171393", "idPagamento": "3673613008688481316", "liberacao": "03/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8670", "idTiktok": "585175934329587561", "cliente": "DIEGO LUIZ BATISTA", "nfe": "3354", "dataVenda": "23/07/2026", "dataEntrega": "26/07/2026", "situacao": "Atendido", "bruto": 219.8, "faturado": 103.5, "vendasLiq": 138.0, "taxas": -28.56, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 109.44, "demonstrativo": "7669046346518906640", "idPagamento": "3673613008688481316", "liberacao": "02/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 2}, {"pedido": "8673", "idTiktok": "585176076849480996", "cliente": "RAFAEL DA CRUZ SOARES", "nfe": "3353", "dataVenda": "23/07/2026", "dataEntrega": "26/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 52.44, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7669046346518906640", "idPagamento": "3673613008688481316", "liberacao": "02/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8674", "idTiktok": "585176055679452971", "cliente": "FABRICIO SERAFIM SILVA", "nfe": "3352", "dataVenda": "23/07/2026", "dataEntrega": "26/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7669046346518906640", "idPagamento": "3673613008688481316", "liberacao": "02/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8676", "idTiktok": "585176094090691918", "cliente": "JUNIOR NEVES FERREIRA", "nfe": "3351", "dataVenda": "23/07/2026", "dataEntrega": "27/07/2026", "situacao": "Atendido", "bruto": 219.8, "faturado": 128.0, "vendasLiq": 138.0, "taxas": -28.56, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 109.44, "demonstrativo": "7669458158326171393", "idPagamento": "3673613008688481316", "liberacao": "03/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 2}, {"pedido": "8677", "idTiktok": "585176106204562635", "cliente": "WILLIAM HENRIQUE FERREIRA", "nfe": "3350", "dataVenda": "23/07/2026", "dataEntrega": "25/07/2026", "situacao": "Atendido", "bruto": 219.8, "faturado": 103.5, "vendasLiq": 138.0, "taxas": -28.56, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 109.44, "demonstrativo": "7668709532880701200", "idPagamento": "3673613008688481316", "liberacao": "01/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 2}, {"pedido": "8678", "idTiktok": "585176153068570470", "cliente": "THIAGO MACHADO ALVES PEREIRA", "nfe": "3349", "dataVenda": "23/07/2026", "dataEntrega": "27/07/2026", "situacao": "Atendido", "bruto": 219.8, "faturado": 96.0, "vendasLiq": 128.0, "taxas": -27.36, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 100.64, "demonstrativo": "7669458158326171393", "idPagamento": "3673613008688481316", "liberacao": "03/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 2}, {"pedido": "8679", "idTiktok": "585176130701395902", "cliente": "DANILO DE JESUS MOURA DE ARAUJO", "nfe": "3348", "dataVenda": "23/07/2026", "dataEntrega": "28/07/2026", "situacao": "Atendido", "bruto": 219.8, "faturado": 103.5, "vendasLiq": 138.0, "taxas": -28.56, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 109.44, "demonstrativo": "7669886191600404240", "idPagamento": "3678655623414449188", "liberacao": "04/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 2}, {"pedido": "8680", "idTiktok": "585176183626695972", "cliente": "RAFAEL DA CRUZ SOARES", "nfe": "3347", "dataVenda": "23/07/2026", "dataEntrega": "26/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 56.05, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7669046346518906640", "idPagamento": "3673613008688481316", "liberacao": "02/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8681", "idTiktok": "585176285664543945", "cliente": "ROSIENE RIBEIRO FERREIRA NOGUEIRA", "nfe": "3346", "dataVenda": "23/07/2026", "dataEntrega": "26/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7669046346518906640", "idPagamento": "3673613008688481316", "liberacao": "02/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8682", "idTiktok": "585176328449852936", "cliente": "RODOLFO DO CARMO SANTOS", "nfe": "3345", "dataVenda": "23/07/2026", "dataEntrega": "29/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 64.17, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7670163723260102416", "idPagamento": "3678655623414449188", "liberacao": "05/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8684", "idTiktok": "585176483429713381", "cliente": "MARCELO JOEL DOS SANTOS", "nfe": "3344", "dataVenda": "23/07/2026", "dataEntrega": "25/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7668709532880701200", "idPagamento": "3673613008688481316", "liberacao": "01/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8685", "idTiktok": "585176618113992543", "cliente": "DANIELA BOUGLEUX BATISTA", "nfe": "3343", "dataVenda": "23/07/2026", "dataEntrega": "28/07/2026", "situacao": "Atendido", "bruto": 219.8, "faturado": 120.0, "vendasLiq": 138.0, "taxas": -28.56, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 109.44, "demonstrativo": "7669886191600404240", "idPagamento": "3678655623414449188", "liberacao": "04/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 2}, {"pedido": "8686", "idTiktok": "585176824755094828", "cliente": "PEDRO MAGALHAES DE FARIAS", "nfe": "3342", "dataVenda": "23/07/2026", "dataEntrega": "26/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 52.44, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7669046346518906640", "idPagamento": "3673613008688481316", "liberacao": "02/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8687", "idTiktok": "585176852930070346", "cliente": "JULIO CESAR SAVAZZI", "nfe": "3341", "dataVenda": "23/07/2026", "dataEntrega": "26/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7669046346518906640", "idPagamento": "3673613008688481316", "liberacao": "02/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8688", "idTiktok": "585176972065997927", "cliente": "FELIPE SIENNA CUNHA", "nfe": "3340", "dataVenda": "23/07/2026", "dataEntrega": "26/07/2026", "situacao": "Atendido", "bruto": 219.8, "faturado": 110.13, "vendasLiq": 138.0, "taxas": -28.56, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 109.44, "demonstrativo": "7669046346518906640", "idPagamento": "3673613008688481316", "liberacao": "02/08/2026", "pagamentoReal": "03/08/2026", "recebimento": "Liquidado", "qtd": 2}, {"pedido": "8692", "idTiktok": "585191905900201302", "cliente": "CLEITON SANTOS DA SILVA", "nfe": "3365", "dataVenda": "24/07/2026", "dataEntrega": "29/07/2026", "situacao": "Atendido", "bruto": 219.8, "faturado": 116.82, "vendasLiq": 158.0, "taxas": -30.96, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 127.04, "demonstrativo": "7670163723260102416", "idPagamento": "3678655623414449188", "liberacao": "05/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 2}, {"pedido": "8693", "idTiktok": "585192347423049001", "cliente": "EMANUEL NASCIMENTO DA SILVA", "nfe": "3364", "dataVenda": "24/07/2026", "dataEntrega": "29/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 63.2, "vendasLiq": 79.0, "taxas": -15.48, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 63.52, "demonstrativo": "7670338438360516368", "idPagamento": "3678655623414449188", "liberacao": "06/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8694", "idTiktok": "585192518629229992", "cliente": "AURIVAN LUCIANO", "nfe": "3363", "dataVenda": "24/07/2026", "dataEntrega": "30/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 51.34, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7670705906086184721", "idPagamento": "3678655623414449188", "liberacao": "07/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8695", "idTiktok": "585192817371940475", "cliente": "ALEX RENNER DOS SANTOS", "nfe": "3362", "dataVenda": "24/07/2026", "dataEntrega": "29/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 52.44, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7670163723260102416", "idPagamento": "3678655623414449188", "liberacao": "05/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8696", "idTiktok": "585192961935312119", "cliente": "MATEUS DA SILVA DOS SANTOS", "nfe": "3361", "dataVenda": "24/07/2026", "dataEntrega": "30/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 51.75, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": -1.2, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 53.52, "demonstrativo": "7670338438360516368", "idPagamento": "3678655623414449188", "liberacao": "06/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8698", "idTiktok": "585193160680309828", "cliente": "WELLERSON CARLOS CARNEIRO DA COSTA", "nfe": "3359", "dataVenda": "24/07/2026", "dataEntrega": "29/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7670163723260102416", "idPagamento": "3678655623414449188", "liberacao": "05/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8699", "idTiktok": "585193394683151873", "cliente": "CARLOS EDUARDO DA SILVA SANTOS", "nfe": "3358", "dataVenda": "24/07/2026", "dataEntrega": "29/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 51.34, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7670163723260102416", "idPagamento": "3678655623414449188", "liberacao": "05/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8700", "idTiktok": "585193579510990526", "cliente": "RENAN FERREIRA DE ABREU", "nfe": "3357", "dataVenda": "24/07/2026", "dataEntrega": "30/07/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 51.34, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7670705906086184721", "idPagamento": "3678655623414449188", "liberacao": "07/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8706", "idTiktok": "585207878627329189", "cliente": "RIVANILDO FREITAS DE JESUS SANTOS", "nfe": "3366", "dataVenda": "25/07/2026", "dataEntrega": "01/08/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7671094259189057281", "idPagamento": "3678655623414449188", "liberacao": "08/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8707", "idTiktok": "585207910694619035", "cliente": "JAILISON FERREIRA DE SOUZA", "nfe": "3367", "dataVenda": "25/07/2026", "dataEntrega": "01/08/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": 69.0, "taxas": -14.28, "freteLiq": 0.0, "reembolsos": 0.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 54.72, "demonstrativo": "7671094259189057281", "idPagamento": "3678655623414449188", "liberacao": "08/08/2026", "pagamentoReal": "10/08/2026", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8668", "idTiktok": "585175639836624214", "cliente": "CLEITON SANTOS DA SILVA", "nfe": "3356", "dataVenda": "23/07/2026", "dataEntrega": "", "situacao": "Cancelado", "bruto": 219.8, "faturado": 93.33, "vendasLiq": 0.0, "taxas": 0.0, "freteLiq": 0.0, "reembolsos": -128.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 0.0, "demonstrativo": "7666098042222823189", "idPagamento": "", "liberacao": "25/07/2026", "pagamentoReal": "", "recebimento": "Liquidado", "qtd": 2}, {"pedido": "8865", "idTiktok": "585845659541538543", "cliente": "THIAGO DOS SANTOS PICCIRILLI", "nfe": "3459", "dataVenda": "01/09/2026", "dataEntrega": "", "situacao": "Cancelado", "bruto": 109.9, "faturado": 47.2, "vendasLiq": 0.0, "taxas": 0.0, "freteLiq": 0.0, "reembolsos": -69.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 0.0, "demonstrativo": "7680732932507830034", "idPagamento": "", "liberacao": "03/09/2026", "pagamentoReal": "", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8925", "idTiktok": "586125981450339826", "cliente": "STHEFANY CRISTINA DOS REIS PEREIRA", "nfe": "3487", "dataVenda": "17/09/2026", "dataEntrega": "", "situacao": "Atendido", "bruto": 329.7, "faturado": 151.25, "vendasLiq": null, "taxas": null, "freteLiq": null, "reembolsos": null, "ajustes": null, "comissaoAfil": null, "aLiquidar": null, "demonstrativo": "", "idPagamento": "", "liberacao": "Pendente", "pagamentoReal": "", "recebimento": "", "qtd": 3}, {"pedido": "8994", "idTiktok": "586190989928138097", "cliente": "ALEXANDRE DOS SANTOS SANTANA", "nfe": "3508", "dataVenda": "21/09/2026", "dataEntrega": "", "situacao": "Atendido", "bruto": 549.5, "faturado": 243.1, "vendasLiq": null, "taxas": null, "freteLiq": null, "reembolsos": null, "ajustes": null, "comissaoAfil": null, "aLiquidar": null, "demonstrativo": "", "idPagamento": "", "liberacao": "Pendente", "pagamentoReal": "", "recebimento": "", "qtd": 5}, {"pedido": "9000", "idTiktok": "586191796600866002", "cliente": "RAILANE FERNANDES DOS SANTOS", "nfe": "3502", "dataVenda": "21/09/2026", "dataEntrega": "", "situacao": "Atendido", "bruto": 109.9, "faturado": 47.19, "vendasLiq": null, "taxas": null, "freteLiq": null, "reembolsos": null, "ajustes": null, "comissaoAfil": null, "aLiquidar": null, "demonstrativo": "", "idPagamento": "", "liberacao": "Pendente", "pagamentoReal": "", "recebimento": "", "qtd": 1}, {"pedido": "9001", "idTiktok": "586191877394565033", "cliente": "FRANCISCO ALEXANDRE PEREIRA DE SANTANA", "nfe": "3501", "dataVenda": "21/09/2026", "dataEntrega": "", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": null, "taxas": null, "freteLiq": null, "reembolsos": null, "ajustes": null, "comissaoAfil": null, "aLiquidar": null, "demonstrativo": "", "idPagamento": "", "liberacao": "Pendente", "pagamentoReal": "", "recebimento": "", "qtd": 1}, {"pedido": "9007", "idTiktok": "586207800796218430", "cliente": "PAULO HENRIQUE BEZERRA DE LIMA", "nfe": "3528", "dataVenda": "22/09/2026", "dataEntrega": "", "situacao": "Atendido", "bruto": 109.9, "faturado": 48.0, "vendasLiq": null, "taxas": null, "freteLiq": null, "reembolsos": null, "ajustes": null, "comissaoAfil": null, "aLiquidar": null, "demonstrativo": "", "idPagamento": "", "liberacao": "Pendente", "pagamentoReal": "", "recebimento": "", "qtd": 1}, {"pedido": "9009", "idTiktok": "586207887347844802", "cliente": "FABIO LUIZ DA SILVA", "nfe": "3526", "dataVenda": "22/09/2026", "dataEntrega": "", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": null, "taxas": null, "freteLiq": null, "reembolsos": null, "ajustes": null, "comissaoAfil": null, "aLiquidar": null, "demonstrativo": "", "idPagamento": "", "liberacao": "Pendente", "pagamentoReal": "", "recebimento": "", "qtd": 1}, {"pedido": "8697", "idTiktok": "585193031324239180", "cliente": "LUCAS LIMA PEREIRA", "nfe": "3360", "dataVenda": "24/07/2026", "dataEntrega": "", "situacao": "Atendido", "bruto": 109.9, "faturado": 52.44, "vendasLiq": 0.0, "taxas": 0.0, "freteLiq": 0.0, "reembolsos": -69.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": 0.0, "demonstrativo": "7666511393843234576", "idPagamento": "", "liberacao": "26/07/2026", "pagamentoReal": "", "recebimento": "Liquidado", "qtd": 1}, {"pedido": "8873", "idTiktok": "585846516823655562", "cliente": "ALLAN JULIANO NOGUEIRA SANTOS", "nfe": "3452", "dataVenda": "01/09/2026", "dataEntrega": "03/09/2026", "situacao": "Atendido", "bruto": 109.9, "faturado": 55.2, "vendasLiq": 0.0, "taxas": -4.14, "freteLiq": 0.0, "reembolsos": -69.0, "ajustes": 0.0, "comissaoAfil": 0.0, "aLiquidar": -4.14, "demonstrativo": "7687002347263870738 / 7682028698610435847", "idPagamento": "3696442724483433508", "liberacao": "19/09/2026 / 06/09/2026", "pagamentoReal": "", "recebimento": "Liquidado", "qtd": 1}]}).rows;
+const byPed={}; ROWS.forEach(r=>{byPed[r.pedido]=r; r.custoManual=false; r.custoVal=null;});
+let ALIQ=0.045, CUSTOUNIT=24;
+const BRL=n=>(n==null||Number.isNaN(n))?null:n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const f2=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtNum=n=>n==null?'':(Number.isInteger(n)?String(n):n.toFixed(2).replace('.',','));
+const cell=v=>v?`<span>${v}</span>`:`<span class="dash">—</span>`;
+const parseNum=s=>{if(s==null)return null;s=String(s).trim().replace(/\./g,'').replace(',','.');if(s==='')return null;const n=Number(s);return Number.isNaN(n)?null:n;};
+
+const custoOf=r=>r.custoManual?r.custoVal:CUSTOUNIT*(r.qtd||0);
+function recalc(r){ if(r.aLiquidar==null)return null; return ['vendasLiq','taxas','freteLiq','comissaoAfil'].reduce((a,k)=>a+(r[k]||0),0); }
+function checar(r){ if(r.aLiquidar==null)return{s:'na',diff:null}; const d=r.aLiquidar-recalc(r); return{s:Math.abs(d)<=0.01?'ok':'dif',diff:d}; }
+const difRF=r=>(r.aLiquidar!=null&&r.faturado!=null)?r.aLiquidar-r.faturado:null;
+const imposto=r=>r.faturado!=null?-(ALIQ*r.faturado):null;
+const lucro=r=>{const c=custoOf(r);return(r.aLiquidar!=null&&c!=null)?r.aLiquidar-c:null;};
+const margem=r=>{const l=lucro(r),i=imposto(r);return(l!=null&&i!=null)?l+i:null;};
+const margemPct=r=>{const m=margem(r);return(m!=null&&r.aLiquidar)?m/r.aLiquidar:null;};
+
+function recStatus(r){ if(r.recebimento==='Liquidado'||r.pagamentoReal) return 'Liquidado'; if(r.dataEntrega) return 'A receber'; return 'A liberar'; }
+function sitPill(s){const m={'Atendido':'p-ok','Cancelado':'p-bad'};return `<span class="pill dot ${m[s]||'p-pend'}">${s||'—'}</span>`;}
+function recPill(r){const s=recStatus(r);const m={'Liquidado':'p-ok','A receber':'p-warn','A liberar':'p-pend'};return `<span class="pill dot ${m[s]}">${s}</span>`;}
+function chkPill(c){if(c.s==='na')return `<span class="pill p-pend">—</span>`;if(c.s==='ok')return `<span class="pill dot p-ok">✓ ${BRL(0)}</span>`;return `<span class="pill dot p-bad">${BRL(c.diff)}</span>`;}
+const money=(n,extra='')=>{const b=BRL(n);return b?`<td class="num ${extra}${n<0?' neg':''}">${b}</td>`:`<td class="num dash">—</td>`;};
+
+const fSit=document.getElementById('fSit'),fRec=document.getElementById('fRec'),fPag=document.getElementById('fPag'),fChk=document.getElementById('fChk');
+[...new Set(ROWS.map(r=>r.situacao).filter(Boolean))].forEach(s=>fSit.insertAdjacentHTML('beforeend',`<option>${s}</option>`));
+['Liquidado','A receber','A liberar'].forEach(s=>fRec.insertAdjacentHTML('beforeend',`<option>${s}</option>`));
+const toKey=d=>{const[a,b,c]=d.split('/');return c+b+a;};
+[...new Set(ROWS.map(r=>r.pagamentoReal).filter(Boolean))].sort((a,b)=>toKey(a)<toKey(b)?-1:1).forEach(d=>fPag.insertAdjacentHTML('beforeend',`<option>${d}</option>`));
+fPag.insertAdjacentHTML('beforeend',`<option value="__none">— sem data —</option>`);
+document.getElementById('sampletag').textContent=`amostra · ${ROWS.length} de 224 pedidos`;
+
+const q=document.getElementById('q'),tbody=document.getElementById('tbody'),foot=document.getElementById('foot'),count=document.getElementById('count');
+let visible=[];
+
+function render(){
+  const term=q.value.trim().toLowerCase(),vs=fSit.value,vr=fRec.value,vp=fPag.value,vk=fChk.value;
+  visible=[]; tbody.innerHTML='';
+  ROWS.forEach(r=>{
+    const c=checar(r);
+    if(vs&&r.situacao!==vs)return; if(vr&&recStatus(r)!==vr)return;
+    if(vp){if(vp==='__none'){if(r.pagamentoReal)return;}else if(r.pagamentoReal!==vp)return;}
+    if(vk&&c.s!==vk)return;
+    if(term){const hay=`${r.pedido} ${r.cliente} ${r.nfe} ${r.idTiktok} ${r.demonstrativo} ${r.idPagamento}`.toLowerCase();if(!hay.includes(term))return;}
+    visible.push(r.pedido);
+    const tr=document.createElement('tr');
+    tr.innerHTML=
+      `<td class="ped">${r.pedido}</td>`+
+      `<td class="id">${cell(r.idTiktok)}</td>`+
+      `<td class="id">${cell(r.idPagamento)}</td>`+
+      `<td class="id">${cell(r.demonstrativo)}</td>`+
+      `<td class="mono">${cell(r.dataVenda)}</td>`+
+      `<td class="mono">${cell(r.dataEntrega)}</td>`+
+      `<td>${sitPill(r.situacao)}</td>`+
+      `<td class="cli" title="${r.cliente||''}">${cell(r.cliente)}</td>`+
+      `<td class="mono">${cell(r.nfe)}</td>`+
+      money(r.faturado,'strong')+
+      `<td class="num"><input class="custo${r.custoManual?' man':''}" data-ped="${r.pedido}" title="${r.qtd} peça(s)" inputmode="decimal" value="${fmtNum(custoOf(r))}"></td>`+
+      money(r.vendasLiq)+ money(r.taxas)+ money(r.aLiquidar)+
+      `<td class="num" id="drf-${r.pedido}"></td>`+
+      `<td class="num" id="imp-${r.pedido}"></td>`+
+      `<td class="num" id="luc-${r.pedido}"></td>`+
+      `<td class="num strong" id="mar-${r.pedido}"></td>`+
+      `<td>${chkPill(c)}</td>`+
+      `<td class="mono">${cell(r.liberacao)}</td>`+
+      `<td class="mono">${cell(r.pagamentoReal)}</td>`+
+      `<td>${recPill(r)}</td>`;
+    tbody.appendChild(tr);
+    paintDerived(r.pedido);
+  });
+  refreshTotals();
+}
+function setCell(id,val){const el=document.getElementById(id);if(!el)return;const b=BRL(val);el.innerHTML=b?b:'<span class="dash">—</span>';el.classList.toggle('neg',val!=null&&val<0);}
+function paintMargem(ped){const r=byPed[ped];const el=document.getElementById('mar-'+ped);if(!el)return;const m=margem(r),p=margemPct(r);
+  el.innerHTML=(m==null)?'<span class="dash">—</span>':`${BRL(m)} <span class="pct">(${p!=null?Math.round(p*100):0}%)</span>`;el.classList.toggle('neg',m!=null&&m<0);}
+function paintDerived(ped){const r=byPed[ped];setCell('drf-'+ped,difRF(r));setCell('imp-'+ped,imposto(r));setCell('luc-'+ped,lucro(r));paintMargem(ped);}
+
+function refreshTotals(){
+  const V=visible.map(p=>byPed[p]);
+  const T=V.reduce((a,r)=>{a.fat+=r.faturado||0;a.rep+=r.aLiquidar||0;a.imp+=imposto(r)||0;a.luc+=lucro(r)||0;a.mar+=margem(r)||0;return a;},{fat:0,rep:0,imp:0,luc:0,mar:0});
+  const mp=T.rep?Math.round(T.mar/T.rep*100):0;
+  const tiles=[['Pedidos',V.length,''],['Faturado (NF)',f2(T.fat),''],['Repasse',f2(T.rep),''],
+    ['Imposto',f2(T.imp),'var(--bad)'],['Lucro Bruto',f2(T.luc),''],['Margem',`${f2(T.mar)} (${mp}%)`,T.mar>=0?'var(--ok)':'var(--bad)']];
+  document.getElementById('kpis').innerHTML=tiles.map(([k,v,c])=>`<div class="kpi"><div class="v" style="${c?`color:${c}`:''}">${v}</div><div class="k">${k}</div></div>`).join('');
+  document.getElementById('kpihint').textContent='Totais do que está filtrado na tela.';
+  foot.innerHTML=`Totais nos cartões acima refletem o filtro atual (${V.length} pedido(s)).`;
+  count.textContent=`Mostrando ${V.length} de ${ROWS.length} pedidos da amostra.`;
+}
+
+[q,fSit,fRec,fPag,fChk].forEach(e=>e.addEventListener('input',render));
+tbody.addEventListener('input',e=>{if(!e.target.classList.contains('custo'))return;const ped=e.target.dataset.ped;const r=byPed[ped];r.custoManual=true;r.custoVal=parseNum(e.target.value);e.target.classList.add('man');paintDerived(ped);refreshTotals();});
+const aliqEl=document.getElementById('aliq');
+aliqEl.addEventListener('input',()=>{const v=parseNum(aliqEl.value);ALIQ=(v==null?0:v)/100;visible.forEach(paintDerived);refreshTotals();});
+const cunitEl=document.getElementById('cunit');
+cunitEl.addEventListener('input',()=>{const v=parseNum(cunitEl.value);CUSTOUNIT=(v==null?0:v);
+  visible.forEach(p=>{const r=byPed[p];if(!r.custoManual){const inp=tbody.querySelector(`input.custo[data-ped="${p}"]`);if(inp)inp.value=fmtNum(custoOf(r));}paintDerived(p);});refreshTotals();});
+render();
+
+const tabs=[...document.querySelectorAll('.tab[data-screen]')];
+function show(name){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.screen===name));document.getElementById('screen-upload').hidden=name!=='upload';document.getElementById('screen-concil').hidden=name!=='concil';window.scrollTo({top:0,behavior:'smooth'});}
+tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.screen)));
+document.getElementById('goconc').addEventListener('click',()=>show('concil'));
+
+const btn=document.getElementById('process'),result=document.getElementById('result');
+btn.addEventListener('click',()=>{const old=btn.innerHTML;btn.disabled=true;btn.style.opacity=.7;btn.innerHTML='<span class="mono">Processando…</span>';setTimeout(()=>{btn.disabled=false;btn.style.opacity=1;btn.innerHTML=old;result.scrollIntoView({behavior:'smooth',block:'start'});},650);});
+
+const root=document.documentElement,tb=document.getElementById('theme');
+let saved=null;try{saved=localStorage.getItem('cf-theme')}catch(e){}
+if(saved)root.setAttribute('data-theme',saved);
+tb.addEventListener('click',()=>{const cur=root.getAttribute('data-theme');const dark=cur?cur==='dark':matchMedia('(prefers-color-scheme:dark)').matches;const next=dark?'light':'dark';root.setAttribute('data-theme',next);try{localStorage.setItem('cf-theme',next)}catch(e){}});
+</script>
+</body>
+</html>
