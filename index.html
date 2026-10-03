@@ -436,6 +436,7 @@ const round2=n=>Math.round(n*100)/100;
 const isoBR=v=>{let s=String(v||'').trim();if(!s||s==='/')return '';s=s.replace(/-/g,'/');const p=s.split('/');if(p.length===3&&p[0].length===4)return `${p[2].padStart(2,'0')}/${p[1].padStart(2,'0')}/${p[0]}`;return s;};
 
 function readBling(file){return new Promise((res,rej)=>{Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>res(r.data),error:rej});});}
+function fixRange(ws){ if(!ws)return ws; let s={r:1e9,c:1e9},e={r:-1,c:-1},f=false; for(const k in ws){ if(k[0]==='!')continue; const a=XLSX.utils.decode_cell(k); f=true; if(a.r<s.r)s.r=a.r; if(a.c<s.c)s.c=a.c; if(a.r>e.r)e.r=a.r; if(a.c>e.c)e.c=a.c; } if(f) ws['!ref']=XLSX.utils.encode_range({s,e}); return ws; }
 async function readIncome(file){
   const buf=await file.arrayBuffer();
   const wb=XLSX.read(buf,{type:'array'});
@@ -443,10 +444,10 @@ async function readIncome(file){
   const pick=re=>names.find(n=>re.test(n.toLowerCase()));
   const detName=pick(/detalhe/)||pick(/pedido/)||names[0];
   const pagName=pick(/pagamento/);
-  const ws=wb.Sheets[detName];
+  const ws=fixRange(wb.Sheets[detName]);
   const num=XLSX.utils.sheet_to_json(ws,{raw:true,defval:''});
   const txt=XLSX.utils.sheet_to_json(ws,{raw:false,defval:''});
-  const pag=pagName?XLSX.utils.sheet_to_json(wb.Sheets[pagName],{raw:false,defval:''}):[];
+  const pag=pagName?XLSX.utils.sheet_to_json(fixRange(wb.Sheets[pagName]),{raw:false,defval:''}):[];
   return {num,txt,pag,detName,pagName};
 }
 function reconcile(bling,inc){
