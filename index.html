@@ -82,12 +82,16 @@
   .btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--border-strong)}
   .btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
   .pdfbtn{padding:9px 14px;font-size:13px}
-  .modal{position:fixed;inset:0;background:rgba(10,15,25,.45);display:grid;place-items:center;z-index:50;padding:16px}
-  .modal[hidden]{display:none}
-  .modalcard{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:22px;width:100%;max-width:360px}
-  .modalcard label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:12px 0 4px}
-  .modalcard input{width:100%;border:1px solid var(--border-strong);border-radius:10px;padding:10px 12px;font:inherit;background:var(--surface);color:var(--fg)}
-  .modalcard .row{display:flex;gap:10px;margin-top:18px}
+  .gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;padding:16px}
+  .gate[hidden]{display:none}
+  .gatecard{background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:28px;width:100%;max-width:380px}
+  .gatebrand{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+  .gatebrand b{font-weight:800;letter-spacing:-.02em}
+  .gatebrand small{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .gatecard h2{margin-bottom:4px}
+  .gatecard label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:14px 0 4px}
+  .gatecard input{width:100%;border:1px solid var(--border-strong);border-radius:10px;padding:11px 12px;font:inherit;background:var(--surface);color:var(--fg)}
+  .gatecard input:focus{outline:none;border-color:var(--accent)}
   .histrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--surface);margin-bottom:10px;flex-wrap:wrap}
   .histact{display:flex;gap:8px}
   .locked{opacity:.5}
@@ -268,16 +272,26 @@
   </section>
 </main>
 
-<div class="modal" id="loginModal" hidden>
-  <form class="modalcard" id="loginForm">
-    <h3>Entrar</h3>
-    <p class="note">Acesso restrito à equipe da Corujinha. Ex.: usuário <b>admin</b>.</p>
-    <label for="loginEmail">Usuário ou e-mail</label>
-    <input id="loginEmail" type="text" autocomplete="username" required>
+<div class="gate" id="loginScreen">
+  <form class="gatecard" id="loginForm">
+    <div class="gatebrand">
+      <svg class="mark" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <rect width="40" height="40" rx="11" fill="var(--accent)"/>
+        <circle cx="14.5" cy="17" r="5.2" fill="var(--surface)"/><circle cx="25.5" cy="17" r="5.2" fill="var(--surface)"/>
+        <circle cx="14.5" cy="17" r="2.2" fill="var(--accent)"/><circle cx="25.5" cy="17" r="2.2" fill="var(--accent)"/>
+        <path d="M17 24.5c1 1.6 5 1.6 6 0" stroke="var(--surface)" stroke-width="2" stroke-linecap="round"/>
+        <path d="M20 9.5l3 3.5h-6l3-3.5z" fill="var(--surface)"/></svg>
+      <div><b>Corujinha</b><small>Controle Financeiro</small></div>
+    </div>
+    <h2>Entrar</h2>
+    <p class="note">Acesso restrito à equipe da Corujinha.</p>
+    <label for="loginEmail">E-mail</label>
+    <input id="loginEmail" type="email" autocomplete="username" value="adm@amarcadacorujinha.com.br" required>
     <label for="loginPass">Senha</label>
     <input id="loginPass" type="password" autocomplete="current-password" required>
     <p class="msg err" id="loginErr"></p>
-    <div class="row"><button type="submit" class="btn primary" style="flex:1">Entrar</button><button type="button" class="btn ghost" id="loginCancel">Cancelar</button></div>
+    <button type="submit" class="btn primary" style="width:100%;justify-content:center;margin-top:16px">Entrar</button>
+    <button type="button" class="btn ghost" id="demoBtn" style="width:100%;justify-content:center;margin-top:10px">Ver demonstração (dados de exemplo)</button>
   </form>
 </div>
 
@@ -534,17 +548,19 @@ function show(name){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.scr
 tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.screen)));
 document.getElementById('goconc').addEventListener('click',()=>show('concil'));
 
-/* ---------- Supabase: login + base acumulada (auto-save + dedup) ---------- */
-let sb=null, session=null;
+/* ---------- Supabase: login (gate) + base acumulada ---------- */
+let sb=null, session=null, demoMode=false;
 try{ if(window.supabase&&window.CF_CONFIG&&CF_CONFIG.SUPABASE_URL){ sb=window.supabase.createClient(CF_CONFIG.SUPABASE_URL,CF_CONFIG.SUPABASE_ANON_KEY); } }catch(e){}
-const authBtn=document.getElementById('authBtn'), loginModal=document.getElementById('loginModal');
+const authBtn=document.getElementById('authBtn'), gate=document.getElementById('loginScreen');
 function renderAuth(){ authBtn.textContent = session?(session.user.email+' · Sair'):'Entrar'; }
-async function refreshAuth(load){ if(!sb){authBtn.textContent='Entrar';return;} try{const {data}=await sb.auth.getSession();session=data.session;}catch(e){session=null;} renderAuth(); if(load&&session) loadBase(); }
-if(sb) sb.auth.onAuthStateChange((_e,s)=>{const was=!!session;session=s;renderAuth();if(session&&!was)loadBase();});
-refreshAuth(true);
-function openLogin(){ if(!sb){alert('Login/banco indisponível aqui (no preview do Claude a conexão externa é bloqueada). Use o site do Vercel.');return;} loginModal.hidden=false; const e=document.getElementById('loginEmail'); if(e)e.focus(); }
-function closeLogin(){ loginModal.hidden=true; }
-authBtn.addEventListener('click',async()=>{ if(session&&sb){ await sb.auth.signOut(); session=null; renderAuth(); } else openLogin(); });
+function showGate(){ gate.hidden=false; }
+function hideGate(){ gate.hidden=true; }
+async function refreshAuth(){ if(!sb){ showGate(); return; } try{const {data}=await sb.auth.getSession();session=data.session;}catch(e){session=null;} renderAuth(); if(session){ demoMode=false; hideGate(); loadBase(); } else if(!demoMode){ showGate(); } }
+if(sb) sb.auth.onAuthStateChange((_e,s)=>{ const was=!!session; session=s; renderAuth(); if(session){ demoMode=false; hideGate(); if(!was) loadBase(); } });
+refreshAuth();
+authBtn.addEventListener('click',async()=>{ if(session&&sb){ await sb.auth.signOut(); session=null; demoMode=false; renderAuth(); showGate(); } else { showGate(); } });
+document.getElementById('demoBtn').addEventListener('click',()=>{ demoMode=true; hideGate(); renderAuth(); });
+document.getElementById('loginForm').addEventListener('submit',async(ev)=>{ ev.preventDefault(); if(!sb){document.getElementById('loginErr').textContent='Banco indisponível neste preview — use o site do Vercel.';return;} const user=document.getElementById('loginEmail').value.trim(), pass=document.getElementById('loginPass').value; const errEl=document.getElementById('loginErr'); if(!user||!pass){errEl.textContent='Preencha e-mail e senha.';return;} errEl.textContent='Entrando…'; const err=await doLogin(user,pass); if(err){errEl.textContent=err;return;} errEl.textContent=''; await refreshAuth(); });
 async function doLogin(user,pass){
   const email=user.includes('@')?user:(user.toLowerCase()+'@corujinha.app');
   let {error}=await sb.auth.signInWithPassword({email,password:pass});
@@ -556,8 +572,6 @@ async function doLogin(user,pass){
   }
   return error?error.message:null;
 }
-document.getElementById('loginForm').addEventListener('submit',async(ev)=>{ ev.preventDefault(); const user=document.getElementById('loginEmail').value.trim(), pass=document.getElementById('loginPass').value; const errEl=document.getElementById('loginErr'); if(!user||!pass){errEl.textContent='Preencha usuário e senha.';return;} errEl.textContent='Entrando…'; const err=await doLogin(user,pass); if(err){errEl.textContent=err;return;} errEl.textContent=''; closeLogin(); await refreshAuth(true); });
-document.getElementById('loginCancel').addEventListener('click',closeLogin);
 
 async function mergeToBase(rows){
   const {data:ex,error:e1}=await sb.from('pedidos').select('pedido'); if(e1) throw new Error(e1.message);
@@ -568,7 +582,7 @@ async function mergeToBase(rows){
   await sb.from('importacoes').insert({novos,atualizados:atual,total_arquivo:rows.length,periodo:ds.length?ds[0]+' a '+ds[ds.length-1]:''});
   return {novos,atualizados:atual};
 }
-async function loadBase(){ if(!sb||!session)return; const {data,error}=await sb.from('pedidos').select('dados').order('pedido'); if(error){setMsg('Erro ao carregar base: '+error.message,'err');return;} const rows=(data||[]).map(x=>x.dados); if(rows.length){ setData(rows); updateTiles(rows); document.getElementById('sampletag').textContent='base · '+rows.length+' pedidos'; } }
+async function loadBase(){ if(!sb||!session)return; const {data,error}=await sb.from('pedidos').select('dados').order('pedido'); if(error){setMsg('Erro ao carregar base: '+error.message,'err');return;} const rows=(data||[]).map(x=>x.dados); setData(rows); updateTiles(rows); document.getElementById('sampletag').textContent='base · '+rows.length+' pedidos'; }
 async function carregarHistorico(){ const box=document.getElementById('histList'); if(!box)return;
   if(!sb){box.innerHTML='<p class="note">Banco indisponível neste preview. Use o site do Vercel.</p>';return;}
   if(!session){box.innerHTML='<p class="note">Entre (botão no topo) para ver a base e as importações.</p>';return;}
