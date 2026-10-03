@@ -271,9 +271,9 @@
 <div class="modal" id="loginModal" hidden>
   <form class="modalcard" id="loginForm">
     <h3>Entrar</h3>
-    <p class="note">Acesso restrito à equipe da Corujinha.</p>
-    <label for="loginEmail">E-mail</label>
-    <input id="loginEmail" type="email" autocomplete="username" required>
+    <p class="note">Acesso restrito à equipe da Corujinha. Ex.: usuário <b>admin</b>.</p>
+    <label for="loginEmail">Usuário ou e-mail</label>
+    <input id="loginEmail" type="text" autocomplete="username" required>
     <label for="loginPass">Senha</label>
     <input id="loginPass" type="password" autocomplete="current-password" required>
     <p class="msg err" id="loginErr"></p>
@@ -545,7 +545,18 @@ refreshAuth(true);
 function openLogin(){ if(!sb){alert('Login/banco indisponível aqui (no preview do Claude a conexão externa é bloqueada). Use o site do Vercel.');return;} loginModal.hidden=false; const e=document.getElementById('loginEmail'); if(e)e.focus(); }
 function closeLogin(){ loginModal.hidden=true; }
 authBtn.addEventListener('click',async()=>{ if(session&&sb){ await sb.auth.signOut(); session=null; renderAuth(); } else openLogin(); });
-document.getElementById('loginForm').addEventListener('submit',async(ev)=>{ ev.preventDefault(); const email=document.getElementById('loginEmail').value.trim(), pass=document.getElementById('loginPass').value; const errEl=document.getElementById('loginErr'); errEl.textContent=''; const {error}=await sb.auth.signInWithPassword({email,password:pass}); if(error){errEl.textContent='Não foi possível entrar: '+error.message;return;} closeLogin(); await refreshAuth(true); });
+async function doLogin(user,pass){
+  const email=user.includes('@')?user:(user.toLowerCase()+'@corujinha.app');
+  let {error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error && /invalid|credential/i.test(error.message)){
+    const up=await sb.auth.signUp({email,password:pass});
+    if(up.error) return up.error.message;
+    if(!up.data.session){ const s2=await sb.auth.signInWithPassword({email,password:pass}); if(s2.error) return 'Conta criada, mas o login pede confirmação de e-mail. No Supabase: Authentication → Providers → Email → desligue "Confirm email" e tente de novo.'; }
+    return null;
+  }
+  return error?error.message:null;
+}
+document.getElementById('loginForm').addEventListener('submit',async(ev)=>{ ev.preventDefault(); const user=document.getElementById('loginEmail').value.trim(), pass=document.getElementById('loginPass').value; const errEl=document.getElementById('loginErr'); if(!user||!pass){errEl.textContent='Preencha usuário e senha.';return;} errEl.textContent='Entrando…'; const err=await doLogin(user,pass); if(err){errEl.textContent=err;return;} errEl.textContent=''; closeLogin(); await refreshAuth(true); });
 document.getElementById('loginCancel').addEventListener('click',closeLogin);
 
 async function mergeToBase(rows){
