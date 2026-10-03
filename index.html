@@ -531,11 +531,11 @@ procBtn.addEventListener('click',async()=>{
     if(sb&&session){
       const res=await mergeToBase(rows);
       await loadBase();
-      setMsg(`Importado e salvo automaticamente: ${res.novos} novos, ${res.atualizados} atualizados. Base com ${ROWS.length} pedidos.`+extra,'ok');
+      setMsg(`Importado: ${res.novos} novos, ${res.atualizados} atualizados · ${matched}/${rows.length} com repasse do TikTok · base com ${ROWS.length} pedidos.`+extra, matched?'ok':'err');
     }else{
       setData(rows); updateTiles(rows);
       document.getElementById('sampletag').textContent=`${rows.length} pedidos (local — não salvo)`;
-      setMsg(`${rows.length} pedidos processados em modo local. Entre (botão no topo) para salvar na base automaticamente.`+extra,'work');
+      setMsg(`${rows.length} pedidos · ${matched}/${rows.length} com repasse do TikTok (modo local, não salvo). Entre para salvar na base.`+extra, matched?'work':'err');
     }
     show('concil');
   }catch(e){ setMsg('Não consegui processar: '+e.message,'err'); }
