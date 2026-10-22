@@ -284,7 +284,9 @@
       </select>
     </div>
     <div class="kpis" id="regKpis"></div>
-    <h3 style="margin:20px 0 12px">Estados</h3>
+    <h3 style="margin:20px 0 12px">Por região</h3>
+    <div id="regRegioes"></div>
+    <h3 style="margin:28px 0 12px">Por estado</h3>
     <div id="regEstados"></div>
     <h3 style="margin:28px 0 12px">Top 15 cidades</h3>
     <div class="tablewrap"><div class="scroll"><table style="min-width:560px">
@@ -464,7 +466,18 @@ const toN=v=>{if(v==null||v==='')return 0;if(typeof v==='number')return v;const 
 const round2=n=>Math.round(n*100)/100;
 const isoBR=v=>{let s=String(v||'').trim();if(!s||s==='/')return '';s=s.replace(/-/g,'/');const p=s.split('/');if(p.length===3&&p[0].length===4)return `${p[2].padStart(2,'0')}/${p[1].padStart(2,'0')}/${p[0]}`;return s;};
 
-function readBling(file){return new Promise((res,rej)=>{Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>res(r.data),error:rej});});}
+function detectDelim(line){const c={';':line.split(';').length,',':line.split(',').length,'\t':line.split('\t').length};let best=',',n=-1;for(const d in c){if(c[d]>n){n=c[d];best=d;}}return best;}
+async function readBling(file){
+  let text=await file.text();
+  if(text && text.charCodeAt(0)===0xFEFF) text=text.slice(1);           // remove BOM
+  const first=(text.split(/\r?\n/).find(l=>l.trim())||'');
+  const delim=detectDelim(first);
+  return new Promise((res,rej)=>{
+    Papa.parse(text,{header:true,skipEmptyLines:'greedy',delimiter:delim,transformHeader:h=>String(h).replace(/^﻿/,'').trim(),
+      complete:r=>{ if(!r.data||!r.data.length){rej(new Error('o arquivo não parece um CSV do Bling (sem linhas lidas).'));return;} res(r.data); },
+      error:err=>rej(err)});
+  });
+}
 function fixRange(ws){ if(!ws)return ws; let s={r:1e9,c:1e9},e={r:-1,c:-1},f=false; for(const k in ws){ if(k[0]==='!')continue; const a=XLSX.utils.decode_cell(k); f=true; if(a.r<s.r)s.r=a.r; if(a.c<s.c)s.c=a.c; if(a.r>e.r)e.r=a.r; if(a.c>e.c)e.c=a.c; } if(f) ws['!ref']=XLSX.utils.encode_range({s,e}); return ws; }
 async function readIncome(file){
   const buf=await file.arrayBuffer();
@@ -630,35 +643,38 @@ async function carregarHistorico(){ const box=document.getElementById('histList'
 
 /* ---------- Regiões (estados/cidades) ---------- */
 const UFNAME={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
+const REGIAO={Norte:['AC','AP','AM','PA','RO','RR','TO'],Nordeste:['AL','BA','CE','MA','PB','PE','PI','RN','SE'],'Centro-Oeste':['DF','GO','MT','MS'],Sudeste:['ES','MG','RJ','SP'],Sul:['PR','RS','SC']};
+const UF2REG={}; for(const rg in REGIAO) REGIAO[rg].forEach(uf=>UF2REG[uf]=rg);
 function renderRegioes(){
   const metric=document.getElementById('regMetric').value;
   const mv=o=> metric==='faturado'?o.faturado: metric==='pecas'?o.pecas:o.pedidos;
-  const est={}, cid={};
+  const fmt=v=> metric==='faturado'?v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):v.toLocaleString('pt-BR');
+  function acc(o,r){o.pedidos++;o.pecas+=r.qtd||0;o.faturado+=r.faturado||0;}
+  function bars(items,labelFn){const arr=items.slice().sort((a,b)=>mv(b)-mv(a));const total=arr.reduce((a,o)=>a+mv(o),0)||1,max=arr.length?mv(arr[0]):1;
+    return '<div class="bars">'+arr.map(o=>{const w=Math.max(3,Math.round(mv(o)/max*100)),pct=Math.round(mv(o)/total*100);
+      return `<div class="barrow"><div class="baruf">${labelFn(o)}</div><div class="bartrack"><div class="barfill" style="width:${w}%"></div></div><div class="barval">${fmt(mv(o))} · ${pct}%</div></div>`;}).join('')+'</div>';}
+  const est={}, cid={}, reg={};
   ROWS.forEach(r=>{
-    const uf=(r.estado||'—').toUpperCase().trim()||'—';
-    (est[uf]=est[uf]||{uf,pedidos:0,pecas:0,faturado:0});
-    est[uf].pedidos++; est[uf].pecas+=r.qtd||0; est[uf].faturado+=r.faturado||0;
-    const nome=(r.cidade||'—').trim()||'—', key=nome+'|'+uf;
-    (cid[key]=cid[key]||{cidade:nome,uf,pedidos:0,pecas:0,faturado:0});
-    cid[key].pedidos++; cid[key].pecas+=r.qtd||0; cid[key].faturado+=r.faturado||0;
+    const uf=((r.estado||'').toUpperCase().trim())||'—';
+    const rg=UF2REG[uf]||'Sem UF';
+    (est[uf]=est[uf]||{k:uf,pedidos:0,pecas:0,faturado:0}); acc(est[uf],r);
+    (reg[rg]=reg[rg]||{k:rg,pedidos:0,pecas:0,faturado:0}); acc(reg[rg],r);
+    const nome=((r.cidade||'').trim())||'—', key=nome+'|'+uf;
+    (cid[key]=cid[key]||{cidade:nome,uf,pedidos:0,pecas:0,faturado:0}); acc(cid[key],r);
   });
   const ests=Object.values(est).sort((a,b)=>mv(b)-mv(a));
-  const total=ests.reduce((a,o)=>a+mv(o),0)||1, max=ests.length?mv(ests[0]):1;
-  const fmt=v=> metric==='faturado'?v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):v.toLocaleString('pt-BR');
   document.getElementById('regKpis').innerHTML=[
     ['Pedidos',ROWS.length.toLocaleString('pt-BR')],
-    ['Estados',ests.filter(e=>e.uf!=='—').length],
+    ['Estados',ests.filter(e=>e.k!=='—').length],
     ['Cidades',Object.keys(cid).filter(k=>!k.startsWith('—')).length],
-    ['Top estado', ests[0]?ests[0].uf:'—']
+    ['Top estado', ests[0]?ests[0].k:'—']
   ].map(([k,v])=>`<div class="kpi"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
-  document.getElementById('regEstados').innerHTML='<div class="bars">'+ests.map(o=>{
-    const w=Math.max(3,Math.round(mv(o)/max*100)), pct=Math.round(mv(o)/total*100);
-    return `<div class="barrow"><div class="baruf"><b>${o.uf}</b><div class="note" style="font-weight:500">${UFNAME[o.uf]||''}</div></div><div class="bartrack"><div class="barfill" style="width:${w}%"></div></div><div class="barval">${fmt(mv(o))} · ${pct}%</div></div>`;
-  }).join('')+'</div>';
+  document.getElementById('regRegioes').innerHTML=bars(Object.values(reg),o=>`<b>${o.k}</b>`);
+  document.getElementById('regEstados').innerHTML=bars(ests,o=>`<b>${o.k}</b><div class="note" style="font-weight:500">${UFNAME[o.k]||''}</div>`);
   const cids=Object.values(cid).sort((a,b)=>mv(b)-mv(a)).slice(0,15);
   document.getElementById('regCidades').innerHTML=cids.map((o,i)=>`<tr><td class="num">${i+1}</td><td>${o.cidade}</td><td class="mono">${o.uf}</td><td class="num">${o.pedidos}</td><td class="num">${o.pecas}</td><td class="num">${o.faturado.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td></tr>`).join('');
   const semUF=ROWS.filter(r=>!(r.estado&&r.estado.trim())).length;
-  document.getElementById('regNota').textContent = semUF? `${semUF} pedido(s) sem estado na base — reimporte o arquivo do Bling para preencher a geografia.` : `Base com ${ROWS.length} pedidos.`;
+  document.getElementById('regNota').textContent = semUF? `${semUF} pedido(s) sem estado na base — reimporte o Bling para preencher a geografia.` : `Base com ${ROWS.length} pedidos.`;
 }
 document.getElementById('regMetric').addEventListener('change',renderRegioes);
 
