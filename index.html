@@ -182,7 +182,7 @@
       <button class="tab" role="tab" aria-selected="false" data-screen="concil">Conciliação</button>
       <button class="tab" role="tab" data-screen="regioes">Regiões</button>
       <button class="tab" role="tab" data-screen="historico">Histórico</button>
-      <button class="tab" role="tab" disabled>Painel <span class="soon">em breve</span></button>
+      <button class="tab" role="tab" data-screen="painel">Painel</button>
     </nav>
     <div class="spacer"></div>
     <button class="icobtn" id="authBtn" style="width:auto;padding:0 12px;font-size:13px">Entrar</button>
@@ -294,6 +294,20 @@
       <tbody id="regCidades"></tbody>
     </table></div></div>
     <p class="count" id="regNota"></p>
+  </section>
+
+  <section class="screen" id="screen-painel" hidden>
+    <h1>Painel executivo</h1>
+    <p class="lead">Visão consolidada da base: faturamento, repasse, impostos, lucro e margem, com evolução mês a mês. Usa a alíquota e o custo/peça definidos na Conciliação.</p>
+    <div class="kpis" id="panKpis"></div>
+    <h3 style="margin:22px 0 12px">Faturamento por mês</h3>
+    <div id="panBars"></div>
+    <h3 style="margin:28px 0 12px">Resumo mensal</h3>
+    <div class="tablewrap"><div class="scroll"><table style="min-width:760px">
+      <thead><tr><th>Mês</th><th class="r">Pedidos</th><th class="r">Faturado</th><th class="r">Repasse</th><th class="r">Imposto</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead>
+      <tbody id="panTable"></tbody>
+      <tfoot><tr id="panFoot"></tr></tfoot>
+    </table></div></div>
   </section>
 
   <section class="screen" id="screen-historico" hidden>
@@ -566,6 +580,9 @@ procBtn.addEventListener('click',async()=>{
   try{
     const [b,inc]=await Promise.all([readBling(fileBling),readIncome(fileIncome)]);
     if(!b.length) throw new Error('o .csv do Bling veio vazio ou com cabeçalho diferente.');
+    const bcols=Object.keys(b[0]||{});
+    if(!(bcols.includes('N° do Pedido')||bcols.includes('Nº do Pedido')) || !bcols.includes('N° do Pedido na Loja Virtual'))
+      throw new Error('este é o export de VENDAS genérico do Bling (colunas diferentes) e não dá para conciliar. Use o "Relatório de Vendas do TikTok", que traz as colunas "N° do Pedido na Loja Virtual" e "Nº da NFe".');
     const {rows,matched}=reconcile(b,inc);
     if(!rows.length) throw new Error('nenhum pedido encontrado no .csv do Bling.');
     IMPORTED=true;
@@ -588,7 +605,7 @@ procBtn.addEventListener('click',async()=>{
 
 /* ---------- navegação ---------- */
 const tabs=[...document.querySelectorAll('.tab[data-screen]')];
-function show(name){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.screen===name));document.querySelectorAll('.screen').forEach(s=>{s.hidden=(s.id!=='screen-'+name);});if(name==='historico')carregarHistorico();if(name==='regioes')renderRegioes();window.scrollTo({top:0,behavior:'smooth'});}
+function show(name){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.screen===name));document.querySelectorAll('.screen').forEach(s=>{s.hidden=(s.id!=='screen-'+name);});if(name==='historico')carregarHistorico();if(name==='regioes')renderRegioes();if(name==='painel')renderPainel();window.scrollTo({top:0,behavior:'smooth'});}
 tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.screen)));
 document.getElementById('goconc').addEventListener('click',()=>show('concil'));
 
@@ -677,6 +694,31 @@ function renderRegioes(){
   document.getElementById('regNota').textContent = semUF? `${semUF} pedido(s) sem estado na base — reimporte o Bling para preencher a geografia.` : `Base com ${ROWS.length} pedidos.`;
 }
 document.getElementById('regMetric').addEventListener('change',renderRegioes);
+
+/* ---------- Painel executivo (evolução mensal) ---------- */
+const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function mesKey(d){const p=String(d||'').split('/');return p.length===3?p[2]+'-'+p[1]:'';}
+function mesLabel(k){const a=k.split('-');return (MES[(+a[1]||1)-1]||'?')+'/'+a[0];}
+function renderPainel(){
+  const brl=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const M={};
+  ROWS.forEach(r=>{const k=mesKey(r.dataVenda)||'—';const m=(M[k]=M[k]||{k,pedidos:0,faturado:0,repasse:0,imposto:0,lucro:0,margem:0});
+    m.pedidos++;m.faturado+=r.faturado||0;m.repasse+=r.aLiquidar||0;m.imposto+=imposto(r)||0;m.lucro+=lucro(r)||0;m.margem+=margem(r)||0;});
+  const months=Object.values(M).sort((a,b)=>a.k<b.k?-1:1);
+  const T=months.reduce((a,m)=>{for(const key of ['pedidos','faturado','repasse','imposto','lucro','margem'])a[key]+=m[key];return a;},{pedidos:0,faturado:0,repasse:0,imposto:0,lucro:0,margem:0});
+  const mpTot=T.repasse?Math.round(T.margem/T.repasse*100):0;
+  const pend=ROWS.filter(r=>!r.demonstrativo).length;
+  document.getElementById('panKpis').innerHTML=[
+    ['Faturado (NF)',brl(T.faturado),''],['Repasse',brl(T.repasse),''],['Imposto',brl(T.imposto),'var(--bad)'],
+    ['Lucro bruto',brl(T.lucro),''],['Margem',brl(T.margem)+' ('+mpTot+'%)',T.margem>=0?'var(--ok)':'var(--bad)'],['A receber (pendentes)',pend,'var(--pend)']
+  ].map(([k,v,c])=>`<div class="kpi"><div class="v" style="${c?`color:${c}`:''}">${v}</div><div class="k">${k}</div></div>`).join('');
+  const max=Math.max(1,...months.map(m=>m.faturado));
+  document.getElementById('panBars').innerHTML='<div class="bars">'+months.map(m=>{const w=Math.max(3,Math.round(m.faturado/max*100));const mp=m.repasse?Math.round(m.margem/m.repasse*100):0;
+    return `<div class="barrow"><div class="baruf"><b>${m.k==='—'?'—':mesLabel(m.k)}</b><div class="note" style="font-weight:500">${m.pedidos} ped.</div></div><div class="bartrack"><div class="barfill" style="width:${w}%"></div></div><div class="barval">${brl(m.faturado)} · lucro ${brl(m.lucro)} (${mp}%)</div></div>`;}).join('')+'</div>';
+  document.getElementById('panTable').innerHTML=months.map(m=>{const mp=m.repasse?Math.round(m.margem/m.repasse*100):0;
+    return `<tr><td class="mono">${m.k==='—'?'—':mesLabel(m.k)}</td><td class="num">${m.pedidos}</td><td class="num">${brl(m.faturado)}</td><td class="num">${brl(m.repasse)}</td><td class="num neg">${brl(m.imposto)}</td><td class="num">${brl(m.lucro)}</td><td class="num">${brl(m.margem)} (${mp}%)</td></tr>`;}).join('');
+  document.getElementById('panFoot').innerHTML=`<td>Total</td><td class="num">${T.pedidos}</td><td class="num">${brl(T.faturado)}</td><td class="num">${brl(T.repasse)}</td><td class="num neg">${brl(T.imposto)}</td><td class="num">${brl(T.lucro)}</td><td class="num">${brl(T.margem)} (${mpTot}%)</td>`;
+}
 
 /* ---------- tema ---------- */
 const root=document.documentElement,tb=document.getElementById('theme');
