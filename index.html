@@ -125,6 +125,13 @@
   .kpi .v{font-family:var(--mono);font-weight:600;font-size:18px}
   .kpi .k{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px}
   .kpihint{font-size:12px;color:var(--faint);margin:0 0 14px}
+  .bars{display:flex;flex-direction:column;gap:9px}
+  .barrow{display:grid;grid-template-columns:120px 1fr 150px;gap:12px;align-items:center}
+  .baruf b{font-family:var(--mono);font-weight:700;font-size:14px}
+  .bartrack{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;height:24px;overflow:hidden}
+  .barfill{height:100%;background:var(--accent);border-radius:6px 0 0 6px;min-width:3px;transition:width .3s}
+  .barval{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--fg);font-weight:600;font-size:12.5px;text-align:right}
+  @media (max-width:560px){.barrow{grid-template-columns:70px 1fr;grid-template-areas:'uf val' 'bar bar'}.baruf{grid-area:uf}.barval{grid-area:val}.bartrack{grid-area:bar}}
 
   .tablewrap{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow)}
   .scroll{overflow-x:auto}
@@ -173,6 +180,7 @@
     <nav class="tabs" role="tablist" aria-label="Seções">
       <button class="tab" role="tab" aria-selected="true" data-screen="upload">Upload</button>
       <button class="tab" role="tab" aria-selected="false" data-screen="concil">Conciliação</button>
+      <button class="tab" role="tab" data-screen="regioes">Regiões</button>
       <button class="tab" role="tab" data-screen="historico">Histórico</button>
       <button class="tab" role="tab" disabled>Painel <span class="soon">em breve</span></button>
     </nav>
@@ -263,6 +271,27 @@
       </table>
     </div></div>
     <p class="count" id="count"></p>
+  </section>
+
+  <section class="screen" id="screen-regioes" hidden>
+    <h1>Regiões — de onde vêm as vendas</h1>
+    <p class="lead">Ranking de estados e cidades que mais compram no TikTok. Útil para entender as regiões e direcionar tráfego pago do site. Baseado na base importada.</p>
+    <div class="toolbar">
+      <select class="flt" id="regMetric">
+        <option value="faturado">Métrica: Faturamento (NF)</option>
+        <option value="pedidos">Métrica: Nº de pedidos</option>
+        <option value="pecas">Métrica: Peças</option>
+      </select>
+    </div>
+    <div class="kpis" id="regKpis"></div>
+    <h3 style="margin:20px 0 12px">Estados</h3>
+    <div id="regEstados"></div>
+    <h3 style="margin:28px 0 12px">Top 15 cidades</h3>
+    <div class="tablewrap"><div class="scroll"><table style="min-width:560px">
+      <thead><tr><th class="r">#</th><th>Cidade</th><th>UF</th><th class="r">Pedidos</th><th class="r">Peças</th><th class="r">Faturamento</th></tr></thead>
+      <tbody id="regCidades"></tbody>
+    </table></div></div>
+    <p class="count" id="regNota"></p>
   </section>
 
   <section class="screen" id="screen-historico" hidden>
@@ -456,6 +485,7 @@ function reconcile(bling,inc){
     const ped=String(r['N° do Pedido']||r['Nº do Pedido']||'').trim(); if(!ped)return;
     if(!B[ped])B[ped]={pedido:ped,idTiktok:String(r['N° do Pedido na Loja Virtual']||'').trim(),cliente:String(r['Nome do contato']||'').trim(),
       nfe:String(r['Nº da NFe']||r['N° da NFe']||'').trim(),dataVenda:String(r['Data']||'').trim(),situacao:String(r['Situação']||'').trim(),
+      estado:String(r['Estado']||'').trim(),cidade:String(r['Município']||'').trim(),
       bruto:0,desc:numBR(r['Desconto pedido']),qtd:0};
     B[ped].bruto+=numBR(r['Preço Total']); B[ped].qtd+=Math.round(numBR(r['Quantidade']))||0;
   });
@@ -480,7 +510,7 @@ function reconcile(bling,inc){
   const out=Object.values(B).map(b=>{
     const d=D[b.idTiktok]||null; if(d)matched++;
     const faturado=round2(b.bruto-b.desc);
-    return {pedido:b.pedido,idTiktok:b.idTiktok,cliente:b.cliente,nfe:b.nfe,dataVenda:b.dataVenda,situacao:b.situacao,qtd:b.qtd,faturado,
+    return {pedido:b.pedido,idTiktok:b.idTiktok,cliente:b.cliente,nfe:b.nfe,dataVenda:b.dataVenda,situacao:b.situacao,estado:b.estado,cidade:b.cidade,qtd:b.qtd,faturado,
       vendasLiq:d?round2(d.vendasLiq):null,taxas:d?round2(d.taxas):null,freteLiq:d?round2(d.freteLiq):null,reembolsos:d?round2(d.reembolsos):null,
       ajustes:d?round2(d.ajustes):null,comissaoAfil:d?round2(d.comissaoAfil):null,aLiquidar:d?round2(d.aLiquidar):null,
       demonstrativo:d?d.demonstrativo:'',idPagamento:d?d.idPagamento:'',liberacao:d?(d.liberacao||''):'',dataEntrega:d?d.dataEntrega:'',
@@ -545,7 +575,7 @@ procBtn.addEventListener('click',async()=>{
 
 /* ---------- navegação ---------- */
 const tabs=[...document.querySelectorAll('.tab[data-screen]')];
-function show(name){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.screen===name));document.querySelectorAll('.screen').forEach(s=>{s.hidden=(s.id!=='screen-'+name);});if(name==='historico')carregarHistorico();window.scrollTo({top:0,behavior:'smooth'});}
+function show(name){tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.screen===name));document.querySelectorAll('.screen').forEach(s=>{s.hidden=(s.id!=='screen-'+name);});if(name==='historico')carregarHistorico();if(name==='regioes')renderRegioes();window.scrollTo({top:0,behavior:'smooth'});}
 tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.screen)));
 document.getElementById('goconc').addEventListener('click',()=>show('concil'));
 
@@ -597,6 +627,40 @@ async function carregarHistorico(){ const box=document.getElementById('histList'
     box.innerHTML=html;
   }catch(e){ box.innerHTML='<p class="note">Erro: '+e.message+'</p>'; }
 }
+
+/* ---------- Regiões (estados/cidades) ---------- */
+const UFNAME={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
+function renderRegioes(){
+  const metric=document.getElementById('regMetric').value;
+  const mv=o=> metric==='faturado'?o.faturado: metric==='pecas'?o.pecas:o.pedidos;
+  const est={}, cid={};
+  ROWS.forEach(r=>{
+    const uf=(r.estado||'—').toUpperCase().trim()||'—';
+    (est[uf]=est[uf]||{uf,pedidos:0,pecas:0,faturado:0});
+    est[uf].pedidos++; est[uf].pecas+=r.qtd||0; est[uf].faturado+=r.faturado||0;
+    const nome=(r.cidade||'—').trim()||'—', key=nome+'|'+uf;
+    (cid[key]=cid[key]||{cidade:nome,uf,pedidos:0,pecas:0,faturado:0});
+    cid[key].pedidos++; cid[key].pecas+=r.qtd||0; cid[key].faturado+=r.faturado||0;
+  });
+  const ests=Object.values(est).sort((a,b)=>mv(b)-mv(a));
+  const total=ests.reduce((a,o)=>a+mv(o),0)||1, max=ests.length?mv(ests[0]):1;
+  const fmt=v=> metric==='faturado'?v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):v.toLocaleString('pt-BR');
+  document.getElementById('regKpis').innerHTML=[
+    ['Pedidos',ROWS.length.toLocaleString('pt-BR')],
+    ['Estados',ests.filter(e=>e.uf!=='—').length],
+    ['Cidades',Object.keys(cid).filter(k=>!k.startsWith('—')).length],
+    ['Top estado', ests[0]?ests[0].uf:'—']
+  ].map(([k,v])=>`<div class="kpi"><div class="v">${v}</div><div class="k">${k}</div></div>`).join('');
+  document.getElementById('regEstados').innerHTML='<div class="bars">'+ests.map(o=>{
+    const w=Math.max(3,Math.round(mv(o)/max*100)), pct=Math.round(mv(o)/total*100);
+    return `<div class="barrow"><div class="baruf"><b>${o.uf}</b><div class="note" style="font-weight:500">${UFNAME[o.uf]||''}</div></div><div class="bartrack"><div class="barfill" style="width:${w}%"></div></div><div class="barval">${fmt(mv(o))} · ${pct}%</div></div>`;
+  }).join('')+'</div>';
+  const cids=Object.values(cid).sort((a,b)=>mv(b)-mv(a)).slice(0,15);
+  document.getElementById('regCidades').innerHTML=cids.map((o,i)=>`<tr><td class="num">${i+1}</td><td>${o.cidade}</td><td class="mono">${o.uf}</td><td class="num">${o.pedidos}</td><td class="num">${o.pecas}</td><td class="num">${o.faturado.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td></tr>`).join('');
+  const semUF=ROWS.filter(r=>!(r.estado&&r.estado.trim())).length;
+  document.getElementById('regNota').textContent = semUF? `${semUF} pedido(s) sem estado na base — reimporte o arquivo do Bling para preencher a geografia.` : `Base com ${ROWS.length} pedidos.`;
+}
+document.getElementById('regMetric').addEventListener('change',renderRegioes);
 
 /* ---------- tema ---------- */
 const root=document.documentElement,tb=document.getElementById('theme');
